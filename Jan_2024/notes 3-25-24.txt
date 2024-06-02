@@ -1,0 +1,8 @@
+ResNet apply till H2 with one layer of Tensor Decomp at the end.
+
+Feed forward Conv structure, apply our new layers over our old stuff or new structure you might find.
+apply changing learning rate over the two structures
+
+play K Value
+
+batch size as old version

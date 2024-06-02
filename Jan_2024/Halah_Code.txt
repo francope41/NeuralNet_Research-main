@@ -1,0 +1,296 @@
+import numpy as np
+import pandas as pd
+import math
+import tensorflow as tf
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings("ignore")
+%matplotlib inline
+from tensorflow.keras.layers import Input, Add, Dense, Layer, Activation, concatenate,Conv2D, Flatten, GlobalAveragePooling2D ,BatchNormalization, Dropout
+from keras.regularizers import l2
+from tensorflow.keras.models import Model
+from tensorflow.keras.initializers import RandomNormal
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import Callback
+from sklearn.model_selection import train_test_split
+from tensorflow.keras import backend as K
+from keras.preprocessing.image import ImageDataGenerator
+# Clear the session
+# K.clear_session()
+
+# Set random seeds for reproducibility
+np.random.seed(42)
+tf.random.set_seed(42)
+
+class PrintShapeCallback(Callback):
+    def __init__(self, model_layer_name):
+        super(PrintShapeCallback, self).__init__()
+        self.model_layer_name = model_layer_name
+
+    def on_epoch_end(self, epoch, logs=None):
+        # Get the output of the layer with the specified name
+        layer_output = self.model.get_layer(self.model_layer_name).output
+        print(f"After epoch {epoch+1}, shape of x (from layer {self.model_layer_name}): {layer_output.shape}")
+
+print_shape_callback = PrintShapeCallback(model_layer_name='dense_1')  # Assuming 'dense_1' is the name of the Dense layer after h2(x)
+
+class StopAtThresholdCallback(Callback):
+    def __init__(self, threshold):
+        super(StopAtThresholdCallback, self).__init__()
+        self.threshold = threshold
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        val_loss = logs.get('val_loss')
+        if val_loss is not None and val_loss < self.threshold:
+            print(f"\nStopping training as validation loss {val_loss} is below the threshold {self.threshold}")
+            self.model.stop_training = True
+
+# callback = StopAtThresholdCallback(threshold=1e-03)
+callback = StopAtThresholdCallback(threshold=9.8023e-06)
+
+class H1Layer(Layer):
+    def __init__(self, **kwargs):
+        super(H1Layer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.b = self.add_weight(shape=(input_shape[-1],),
+                                initializer=RandomNormal(mean=0.0,stddev=0.03),
+                                trainable=True)
+        super(H1Layer, self).build(input_shape)
+
+    def call(self, x):
+        return (self.b * (2 * x))/ (2**(1/2) * np.pi**(1/4))
+        #return (2 * x) 
+
+
+class H2Layer(Layer):
+    def __init__(self, **kwargs):
+        super(H2Layer, self).__init__(**kwargs)
+
+    def call(self, x, h1):
+        return ((2*x*(h1))-2)/(2*(np.pi**(1/4))*np.sqrt(math.factorial(2)))
+    
+class H3Layer(Layer):
+    def __init__(self, **kwargs):
+        super(H3Layer, self).__init__(**kwargs)
+        
+    def call(self, x, h1, h2):
+        return ((2 * x * (h2))-(4 * h1)) / (2**(3/2)*(np.pi**(1/4))*np.sqrt(math.factorial(3)))
+
+class H4Layer(Layer):
+    def __init__(self, **kwargs):
+        super(H4Layer, self).__init__(**kwargs)
+
+    def call(self, x, h2, h3):
+        return ((2*x*(h3))-(6*h2)) / (2**2 *(np.pi**(1/4))*np.sqrt(math.factorial(4)))
+
+class H5Layer(Layer):
+    def __init__(self, **kwargs):
+        super(H5Layer,self).__init__(**kwargs)
+
+    def call(self,x, h3, h4):
+        return ((2*x*(h4))-(8*h3)) / (2**(5/2) * (np.pi**(1/4))*np.sqrt(math.factorial(5)))
+    
+class H6Layer(Layer):
+    def __init__(self, **kwargs):
+        super(H6Layer,self).__init__(**kwargs)
+        
+    def call(self,x, h4, h5):
+        return (2*x*(h5))-(10*h4)
+
+class TensorDecompositionLayer(Layer):
+    def __init__(self, rank, **kwargs):
+        self.rank = rank
+        super(TensorDecompositionLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.factors_a = self.add_weight(shape=(input_shape[-1], self.rank),
+                                         initializer=RandomNormal(mean=0.0,stddev=0.05),
+                                         trainable=True)
+        self.factors_b = self.add_weight(shape=(self.rank, input_shape[-1]),
+                                        initializer=RandomNormal(mean=0.0,stddev=0.05),
+                                        trainable=True)
+        super(TensorDecompositionLayer, self).build(input_shape)
+
+    def call(self, x):
+        return tf.matmul(tf.matmul(x, self.factors_a), self.factors_b)
+
+ 
+class Relu_With_Weight(Layer):
+    def __init__(self, **kwargs):
+        super(Relu_With_Weight, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.b = self.add_weight(shape=(input_shape[-1],),
+                                initializer=RandomNormal(),
+                                trainable=True)
+        super(Relu_With_Weight, self).build(input_shape)
+
+    def call(self, x):
+        return K.tanh(x * self.b)
+
+
+#Import Libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import keras
+from tensorflow.keras import datasets,models,layers
+# Adding TF Cifar10 Data ..
+from keras.datasets import cifar10
+(X_train, Y_train), (X_test, Y_test) = cifar10.load_data()
+# Normalize the data.
+X_train = X_train.astype('float32')
+X_test = X_test.astype('float32')
+X_train /= 255.0
+X_test /= 255.0
+from sklearn.model_selection import train_test_split
+X_train, X_val, Y_train, Y_val = train_test_split(X_train, Y_train, test_size = 0.2,shuffle = True)
+from sklearn.preprocessing import OneHotEncoder
+encoder = OneHotEncoder()
+encoder.fit(Y_train)
+Y_train = encoder.transform(Y_train).toarray()
+Y_test = encoder.transform(Y_test).toarray()
+Y_val =  encoder.transform(Y_val).toarray()
+from keras.preprocessing.image import ImageDataGenerator
+aug = ImageDataGenerator(horizontal_flip=True, width_shift_range=0.05,
+                             height_shift_range=0.05)
+aug.fit(X_train)
+
+
+"""
+ResNet-18
+Reference:
+[1] K. He et al. Deep Residual Learning for Image Recognition. CVPR, 2016
+[2] K. He, X. Zhang, S. Ren, and J. Sun. Delving deep into rectifiers:
+Surpassing human-level performance on imagenet classification. In
+ICCV, 2015.
+"""
+
+from keras.callbacks import EarlyStopping
+from keras.layers import Dense, Conv2D,  MaxPool2D, Flatten, GlobalAveragePooling2D,  BatchNormalization, Layer, Add
+from keras.models import Sequential
+from keras.models import Model
+import tensorflow as tf
+
+
+class ResNetHermiteBlock(Model):
+    """
+    A HERMITE resnet block.
+    """
+
+    def __init__(self, channels: int, down_sample=False):
+        """
+        channels: same as number of convolution kernels
+        """
+        super().__init__()
+
+        self.__channels = channels
+        self.__down_sample = down_sample
+        self.__strides = [2, 1] if down_sample else [1, 1]
+
+        KERNEL_SIZE = (3, 3)
+        # use He initialization, instead of Xavier (a.k.a 'glorot_uniform' in Keras), as suggested in [2]
+        INIT_SCHEME = "he_normal"
+
+        self.conv_1 = Conv2D(self.__channels, strides=self.__strides[0],
+                             kernel_size=KERNEL_SIZE, padding="same", kernel_initializer=INIT_SCHEME)
+        self.bn_1 = BatchNormalization()
+        self.conv_2 = Conv2D(self.__channels, strides=self.__strides[1],
+                             kernel_size=KERNEL_SIZE, padding="same", kernel_initializer=INIT_SCHEME)
+        self.bn_2 = BatchNormalization()
+        self.merge = Add()
+
+        self.tensorDecomp = TensorDecompositionLayer(3)
+        # Initialize Hermite Polynomial layers
+        self.h1 = H1Layer()
+        self.h2 = H2Layer()
+
+        if self.__down_sample:
+            # perform down sampling using stride of 2, according to [1].
+            self.res_conv = Conv2D(
+                self.__channels, strides=2, kernel_size=(1, 1), kernel_initializer=INIT_SCHEME, padding="same")
+            self.res_bn = BatchNormalization()
+
+    def call(self, inputs):
+        res = inputs
+
+        x = self.conv_1(inputs)
+        # x = self.bn_1(x)
+        x = x_h1 = self.h1(x)  # Store H1 output if needed for H2
+        # x = tf.nn.relu(x)
+        x = self.conv_2(x)
+        # x = self.bn_2(x)
+        x = x_h2 = self.h2(x, x_h1)  # Pass x_h1 as the additional argument to H2Layer
+        x = self.tensorDecomp(x)
+
+
+        if self.__down_sample:
+            res = self.res_conv(res)
+            res = self.res_bn(res)
+
+        # if not perform down sample, then add a shortcut directly
+        out = self.merge([x, res])
+        # out = tf.nn.relu(x)
+        # x_h1 = self.h1(x)  # Store H1 output if needed for H2
+        # out = x_h2 = self.h2(x, x_h1)  # Pass x_h1 as the additional argument to H2Layer
+        # out = self.tensorDecomp(x)
+
+        return out
+
+
+class ResNet18(Model):
+
+    def __init__(self, num_classes, **kwargs):
+        """
+            num_classes: number of classes in specific classification task.
+        """
+        super().__init__(**kwargs)
+        self.conv_1 = Conv2D(64, (7, 7), strides=2,
+                             padding="same", kernel_initializer="he_normal")
+        self.init_bn = BatchNormalization()
+        self.pool_2 = MaxPool2D(pool_size=(2, 2), strides=2, padding="same")
+        self.res_1_1 = ResNetHermiteBlock(64)
+        self.res_1_2 = ResNetHermiteBlock(64)
+        self.res_2_1 = ResNetHermiteBlock(128, down_sample=True)
+        self.res_2_2 = ResNetHermiteBlock(128)
+        self.res_3_1 = ResNetHermiteBlock(256, down_sample=True)
+        self.res_3_2 = ResNetHermiteBlock(256)
+        self.res_4_1 = ResNetHermiteBlock(512, down_sample=True)
+        self.res_4_2 = ResNetHermiteBlock(512)
+        self.avg_pool = GlobalAveragePooling2D()
+        self.flat = Flatten()
+        self.fc = Dense(num_classes, activation="softmax")
+
+    def call(self, inputs):
+        out = self.conv_1(inputs)
+        out = self.init_bn(out)
+        # out = tf.nn.relu(out)
+        out = self.pool_2(out)
+
+        for res_block in [self.res_1_1, self.res_1_2, self.res_2_1, self.res_2_2, self.res_3_1, self.res_3_2, self.res_4_1, self.res_4_2]:
+        # for res_block in [self.res_1_1, self.res_1_2, self.res_2_1, self.res_2_2, self.res_3_1, self.res_3_2 ,self.res_4_1]:
+            out = res_block(out)
+        out = self.avg_pool(out)
+        out = self.flat(out)
+        out = self.fc(out)
+        return out
+
+
+model = ResNet18(10)
+model.build(input_shape = (None,32,32,3))
+#use categorical_crossentropy since the label is one-hot encoded
+from keras.optimizers import SGD
+# opt = SGD(learning_rate=0.1,momentum=0.9,decay = 1e-04) #parameters suggested by He [1]
+model.compile(optimizer = "adam",loss='categorical_crossentropy', metrics=["accuracy"]) #LR = 0.001
+model.summary()
+from keras.callbacks import EarlyStopping
+
+es = EarlyStopping(patience= 8, restore_best_weights=True, monitor="val_accuracy")
+#I did not use cross validation, so the validate performance is not accurate.
+STEPS = len(X_train) / 64
+# history = model.fit(aug.flow(X_train,Y_train,batch_size = 256), steps_per_epoch=STEPS, batch_size = 256, epochs=50, validation_data=(X_train, Y_train),callbacks=[es])
+history = model.fit(aug.flow(X_train,Y_train,batch_size = 64), steps_per_epoch=STEPS, batch_size = 64, epochs=50, validation_data=(X_train, Y_train))

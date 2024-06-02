@@ -1,0 +1,14 @@
+Compare # f(x1,x2)=3cos(2pi( x1^2-x2^2)) Prediction
+with same number of params
+
+
+Pick regression problem
+test n2, n3, n4, and n5
+
+
+Regression
+https://www.kaggle.com/code/alokevil/non-linear-regression/input
+Get dataset
+read dataset, do cleaning, make sure it is numerical for correlation map
+check the correlation, select single variable for regression analysis, pick the one with most correlation with the target variable 
+Apply model for regression

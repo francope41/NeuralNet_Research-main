@@ -1,0 +1,26 @@
+# import numpy as np
+# from keras.layers import Dense, Activation
+# from keras.models import Sequential
+# x = np.arange(200).reshape(-1,1) / 50
+# y = np.cos(x)
+
+# print(x.shape)
+# print(y.shape)
+
+
+# # model = Sequential([
+# # Dense(40, input_shape=(1,)),
+# # Activation('sigmoid'),
+# # Dense(12),
+# # Activation('sigmoid'),
+# # Dense(1)
+# #     ])
+
+# # model.compile(loss='mean_squared_error', optimizer='SGD', metrics=['mean_squared_error'])
+
+# # for i in range(40):
+# #     model.fit(x, y, epochs=25, batch_size=8, verbose=0)
+# #     predictions = model.predict(x)
+# #     print(np.mean(np.square(predictions - y)))
+
+

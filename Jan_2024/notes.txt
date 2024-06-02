@@ -1,0 +1,29 @@
+Count ELISAS
+
+100 Elisas, 3 Without box
+
+9 Charging cables
+3 -3 port Charging stations
+
+10 E-puck with its charging cable each
+
+
+Search Algorithm
+
+Find incapacitaded robot
+scale
+multi target
+
+Email GCtronics
+
+*** step ***
+ask if there is a sensor read command
+scale and be able to communicate
+python is not scalable
+
+c can be scaled but we cant communicate
+
+how to send updates to the robots
+
+mix c with python
+
